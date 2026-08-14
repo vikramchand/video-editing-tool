@@ -1,0 +1,38 @@
+# Optional YAML configuration.
+#
+#   cp config.yaml.example config.yaml
+#
+# Nested keys are flattened to the environment-variable names, so
+#
+#   video:
+#     max_duration_seconds: 180
+#
+# is the same setting as VIDEO_MAX_DURATION_SECONDS. Real environment variables
+# and .env always win over this file, which only supplies defaults.
+#
+# Point elsewhere with: CONFIG_FILE=/path/to/config.yaml
+
+video:
+  max_duration_seconds: 180
+  max_upload_mb: 512
+  frames_per_scene: 3
+  max_frames: 100
+  frame_width: 768
+
+scene:
+  detector: auto
+  threshold: 27.0
+  ffmpeg_threshold: 0.25
+  min_duration: 1.5
+
+# Provider keys are top-level because that is how they appear in the
+# environment (LLM_PROVIDER, not PROVIDERS_LLM_PROVIDER).
+llm_provider: ollama
+llm_model: qwen3:8b
+vision_provider: ollama
+vision_model: qwen2.5vl:7b
+transcription_provider: whisper
+whisper_model: small
+
+worker_count: 1
+log_level: INFO

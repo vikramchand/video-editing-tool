@@ -1,0 +1,159 @@
+{
+  "duration": 13.023,
+  "summary": "This summary was produced by the mock LLM provider, not a real model. The video is 13.0 seconds long and contains 3 detected scene(s). Set LLM_PROVIDER=ollama for real reasoning.",
+  "title": "Mock Video Analysis",
+  "topics": [
+    "mock",
+    "demo"
+  ],
+  "metadata": {
+    "duration": 13.02322,
+    "width": 640,
+    "height": 360,
+    "fps": 25.0,
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "has_audio": true,
+    "size_bytes": 144906,
+    "container": "mov",
+    "rotation": 0,
+    "created_at": null
+  },
+  "transcript": [
+    {
+      "start": 0.0,
+      "end": 4.373,
+      "text": "This is mock transcription output.",
+      "speaker": null,
+      "confidence": 0.99
+    },
+    {
+      "start": 4.373,
+      "end": 8.746,
+      "text": "No speech model was used to produce it.",
+      "speaker": null,
+      "confidence": 0.99
+    },
+    {
+      "start": 8.746,
+      "end": 13.023,
+      "text": "Set TRANSCRIPTION_PROVIDER=whisper for real transcription.",
+      "speaker": null,
+      "confidence": 0.99
+    }
+  ],
+  "transcript_language": "en",
+  "scenes": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 4.0,
+      "description": "Mock analysis of scene 1 (0.0s-4.0s) from 3 sampled frame(s). Speech was present during this scene.",
+      "people": [
+        "one adult"
+      ],
+      "objects": [
+        "mock object"
+      ],
+      "actions": [
+        "talking"
+      ],
+      "environment": "mock environment",
+      "importance": 0.57,
+      "keyframes": [
+        0.667,
+        2.0,
+        3.333
+      ],
+      "transcript_text": "This is mock transcription output."
+    },
+    {
+      "id": 2,
+      "start": 4.0,
+      "end": 9.0,
+      "description": "Mock analysis of scene 2 (4.0s-9.0s) from 3 sampled frame(s). Speech was present during this scene.",
+      "people": [
+        "one adult"
+      ],
+      "objects": [
+        "mock object"
+      ],
+      "actions": [
+        "talking"
+      ],
+      "environment": "mock environment",
+      "importance": 0.6,
+      "keyframes": [
+        4.833,
+        6.5,
+        8.167
+      ],
+      "transcript_text": "This is mock transcription output. No speech model was used to produce it. Set TRANSCRIPTION_PROVIDER=whisper for real transcription."
+    },
+    {
+      "id": 3,
+      "start": 9.0,
+      "end": 13.023,
+      "description": "Mock analysis of scene 3 (9.0s-13.0s) from 3 sampled frame(s). Speech was present during this scene.",
+      "people": [
+        "one adult"
+      ],
+      "objects": [
+        "mock object"
+      ],
+      "actions": [
+        "talking"
+      ],
+      "environment": "mock environment",
+      "importance": 0.72,
+      "keyframes": [
+        9.671,
+        11.011,
+        12.352
+      ],
+      "transcript_text": "Set TRANSCRIPTION_PROVIDER=whisper for real transcription."
+    }
+  ],
+  "highlights": [
+    {
+      "start": 4.0,
+      "end": 9.0,
+      "reason": "Longest continuous scene in the video (mock reasoning).",
+      "score": 0.75,
+      "title": "Scene 2"
+    }
+  ],
+  "edit_suggestions": [
+    {
+      "start": 0.0,
+      "end": 1.0,
+      "action": "trim",
+      "reason": "Tighten the opening (mock reasoning).",
+      "confidence": 0.5
+    },
+    {
+      "start": 4.0,
+      "end": 9.0,
+      "action": "caption",
+      "reason": "Add captions over the main moment (mock reasoning).",
+      "confidence": 0.6
+    }
+  ],
+  "people": [
+    "one adult"
+  ],
+  "objects": [
+    "mock object"
+  ],
+  "actions": [
+    "talking"
+  ],
+  "providers": {
+    "transcription": "mock:mock-whisper",
+    "vision": "mock:mock-vision",
+    "reasoning": "mock:mock-llm",
+    "reasoning_source": "llm",
+    "scene_detector": "pyscenedetect"
+  },
+  "warnings": []
+}

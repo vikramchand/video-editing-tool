@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Application data (uploads, SQLite database, renders, extracted frames)
+data/
+output/
+!examples/
+
+# Local configuration
+.env
+config.yaml
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Media dropped in for manual testing
+*.mp4
+*.mov
+*.m4v
+*.avi
+*.mkv
+*.webm
+*.wav
+*.srt

@@ -1,0 +1,208 @@
+{
+  "duration": 47.2,
+  "summary": "A person walks into a kitchen and greets the camera, then opens the refrigerator and takes out a bottled drink. After a short aside about the weather, they head out through the back door and finish the clip outside on the patio.",
+  "title": "Grabbing a Drink Before Heading Outside",
+  "topics": ["kitchen", "everyday routine", "vlog"],
+  "metadata": {
+    "duration": 47.2,
+    "width": 1080,
+    "height": 1920,
+    "fps": 29.97,
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "has_audio": true,
+    "size_bytes": 41288341,
+    "container": "mov",
+    "rotation": 90,
+    "created_at": "2026-05-14T09:12:44.000000Z"
+  },
+  "transcript": [
+    {
+      "start": 2.1,
+      "end": 5.8,
+      "text": "Okay, so I just got back and I am absolutely parched.",
+      "speaker": null,
+      "confidence": 0.94
+    },
+    {
+      "start": 6.2,
+      "end": 9.4,
+      "text": "Let me show you what we have in the fridge right now.",
+      "speaker": null,
+      "confidence": 0.96
+    },
+    {
+      "start": 13.7,
+      "end": 18.1,
+      "text": "There we go. Cold brew, which is basically the only thing I drink.",
+      "speaker": null,
+      "confidence": 0.91
+    },
+    {
+      "start": 24.5,
+      "end": 29.9,
+      "text": "It is actually really nice out today, so I am going to sit outside for a bit.",
+      "speaker": null,
+      "confidence": 0.93
+    },
+    {
+      "start": 36.4,
+      "end": 40.2,
+      "text": "Alright, that is it. See you in the next one.",
+      "speaker": null,
+      "confidence": 0.95
+    }
+  ],
+  "transcript_language": "en",
+  "scenes": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 8.4,
+      "description": "A person walks into a kitchen holding a phone and speaks directly to the camera.",
+      "people": ["one adult in a grey hoodie"],
+      "objects": ["kitchen counter", "phone", "wooden cabinets"],
+      "actions": ["walking", "talking"],
+      "environment": "indoor kitchen, daylight from a window",
+      "importance": 0.65,
+      "keyframes": [1.4, 4.2, 7.0],
+      "transcript_text": "Okay, so I just got back and I am absolutely parched. Let me show you what we have in the fridge right now."
+    },
+    {
+      "id": 2,
+      "start": 8.4,
+      "end": 18.7,
+      "description": "The person opens a stainless steel refrigerator, looks inside, and removes a bottled drink.",
+      "people": ["one adult in a grey hoodie"],
+      "objects": ["refrigerator", "bottled drink", "grocery items"],
+      "actions": ["opening", "reaching", "removing"],
+      "environment": "indoor kitchen, in front of the refrigerator",
+      "importance": 0.82,
+      "keyframes": [10.1, 13.5, 16.9],
+      "transcript_text": "There we go. Cold brew, which is basically the only thing I drink."
+    },
+    {
+      "id": 3,
+      "start": 18.7,
+      "end": 33.1,
+      "description": "The person closes the refrigerator, opens the bottle at the counter and talks to the camera between sips.",
+      "people": ["one adult in a grey hoodie"],
+      "objects": ["bottled drink", "kitchen counter"],
+      "actions": ["closing", "drinking", "talking"],
+      "environment": "indoor kitchen",
+      "importance": 0.55,
+      "keyframes": [21.0, 25.9, 30.8],
+      "transcript_text": "It is actually really nice out today, so I am going to sit outside for a bit."
+    },
+    {
+      "id": 4,
+      "start": 33.1,
+      "end": 47.2,
+      "description": "The person walks through a back door onto a sunlit patio and sits down, ending the clip.",
+      "people": ["one adult in a grey hoodie"],
+      "objects": ["back door", "patio chair", "garden"],
+      "actions": ["walking", "opening", "sitting"],
+      "environment": "outdoor patio, bright sunlight",
+      "importance": 0.7,
+      "keyframes": [35.8, 40.1, 44.5],
+      "transcript_text": "Alright, that is it. See you in the next one."
+    }
+  ],
+  "highlights": [
+    {
+      "start": 8.4,
+      "end": 18.7,
+      "reason": "The main action of the video: the refrigerator is opened and the drink is taken out, and the speech confirms it.",
+      "score": 0.82,
+      "title": "Taking the drink from the fridge"
+    },
+    {
+      "start": 33.1,
+      "end": 47.2,
+      "reason": "Strong visual change from indoors to bright outdoors, which closes the story.",
+      "score": 0.7,
+      "title": "Heading outside"
+    },
+    {
+      "start": 0.0,
+      "end": 8.4,
+      "reason": "Sets up the video and establishes the speaker.",
+      "score": 0.65,
+      "title": "Kitchen intro"
+    }
+  ],
+  "edit_suggestions": [
+    {
+      "start": 0.0,
+      "end": 2.1,
+      "action": "remove",
+      "reason": "2.1s of silence before the first word.",
+      "confidence": 0.8
+    },
+    {
+      "start": 9.4,
+      "end": 13.7,
+      "action": "trim",
+      "reason": "Long pause while the fridge is being searched; tightening keeps the pace up.",
+      "confidence": 0.65
+    },
+    {
+      "start": 13.7,
+      "end": 18.7,
+      "action": "zoom",
+      "reason": "Punch in on the drink being removed, the most important beat in the clip.",
+      "confidence": 0.6
+    },
+    {
+      "start": 29.9,
+      "end": 36.4,
+      "action": "remove",
+      "reason": "6.5s silent gap with no significant visual change.",
+      "confidence": 0.72
+    },
+    {
+      "start": 2.1,
+      "end": 40.2,
+      "action": "caption",
+      "reason": "Speech is present throughout; burned-in captions improve silent-autoplay retention.",
+      "confidence": 0.6
+    },
+    {
+      "start": 33.1,
+      "end": 40.0,
+      "action": "broll",
+      "reason": "The walk outside is visually static; supporting footage of the garden would cover it.",
+      "confidence": 0.45
+    }
+  ],
+  "people": ["one adult in a grey hoodie"],
+  "objects": [
+    "kitchen counter",
+    "phone",
+    "wooden cabinets",
+    "refrigerator",
+    "bottled drink",
+    "grocery items",
+    "back door",
+    "patio chair",
+    "garden"
+  ],
+  "actions": [
+    "walking",
+    "talking",
+    "opening",
+    "reaching",
+    "removing",
+    "closing",
+    "drinking",
+    "sitting"
+  ],
+  "providers": {
+    "transcription": "whisper:small",
+    "vision": "ollama:qwen2.5vl:7b",
+    "reasoning": "ollama:qwen3:8b",
+    "reasoning_source": "llm",
+    "scene_detector": "pyscenedetect"
+  },
+  "warnings": []
+}

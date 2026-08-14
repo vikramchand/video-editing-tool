@@ -1,0 +1,69 @@
+# docker compose up
+#
+# Starts the Video Understanding API. Ollama is expected to be running on the
+# HOST (see README: "Why Ollama runs on the host"), which is what lets it use
+# the Mac's GPU. The container reaches it through host.docker.internal.
+#
+# Before starting, on the host:
+#   ollama serve
+#   ollama pull qwen2.5vl:7b
+#   ollama pull qwen3:8b
+
+services:
+  api:
+    build:
+      context: .
+      args:
+        # Baked into the image so the first upload does not also download weights.
+        WHISPER_MODEL: ${WHISPER_MODEL:-small}
+    image: video-understanding:latest
+    container_name: video-understanding-api
+    ports:
+      - "${PORT:-8000}:8000"
+
+    environment:
+      # --- Providers (override in .env) ---------------------------------
+      TRANSCRIPTION_PROVIDER: ${TRANSCRIPTION_PROVIDER:-whisper}
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      VISION_PROVIDER: ${VISION_PROVIDER:-ollama}
+      VISION_MODEL: ${VISION_MODEL:-qwen2.5vl:7b}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-qwen3:8b}
+
+      # Ollama runs on the host, not in this container.
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      OLLAMA_TIMEOUT: ${OLLAMA_TIMEOUT:-300}
+
+      # --- Sampling and limits ------------------------------------------
+      VIDEO_MAX_DURATION_SECONDS: ${VIDEO_MAX_DURATION_SECONDS:-180}
+      VIDEO_MAX_UPLOAD_MB: ${VIDEO_MAX_UPLOAD_MB:-512}
+      VIDEO_FRAMES_PER_SCENE: ${VIDEO_FRAMES_PER_SCENE:-3}
+      VIDEO_MAX_FRAMES: ${VIDEO_MAX_FRAMES:-100}
+
+      # PySceneDetect is not installed in the image by default (see Dockerfile).
+      SCENE_DETECTOR: ${SCENE_DETECTOR:-ffmpeg}
+
+      WORKER_COUNT: ${WORKER_COUNT:-1}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATA_DIR: /app/data
+      OUTPUT_DIR: /app/output
+
+    volumes:
+      # Uploads, SQLite database and renders survive container restarts.
+      - ./data:/app/data
+      - ./output:/app/output
+
+    # Required on Linux hosts for host.docker.internal to resolve.
+    # Docker Desktop (macOS/Windows) provides it automatically; leaving this in
+    # is harmless there.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
