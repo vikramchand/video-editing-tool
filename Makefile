@@ -1,4 +1,4 @@
-.PHONY: help install install-all dev test test-fast lint format run cli check docker docker-up clean reset-data
+.PHONY: help install install-all dev test test-fast lint format run cli check docker docker-up clean reset-data mac mac-install
 
 PYTHON ?= python3.12
 VENV   ?= .venv
@@ -13,6 +13,8 @@ help:
 	@echo "make lint         - ruff check"
 	@echo "make run          - start the API on http://localhost:8000"
 	@echo "make demo         - process the bundled example with mock providers"
+	@echo "make mac          - build the Mac app into macapp/build (macOS only)"
+	@echo "make mac-install  - build it, install it to /Applications and launch it"
 	@echo "make docker-up    - docker compose up --build"
 	@echo "make clean        - remove build artefacts and caches"
 	@echo "make reset-data   - delete the database and every stored video (asks first;"
@@ -52,6 +54,14 @@ demo:
 
 docker-up:
 	docker compose up --build
+
+# The Mac app needs no virtualenv of its own: it builds one on first launch,
+# inside ~/Library/Application Support. Requires the Xcode Command Line Tools.
+mac:
+	bash macapp/build.sh
+
+mac-install:
+	bash macapp/build.sh --install --open
 
 # Paths come from Settings, so a relocated DATA_DIR/DATABASE_PATH is honoured.
 # `clean` below only touches build artefacts; this touches your actual data.

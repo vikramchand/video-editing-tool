@@ -26,3 +26,6 @@ config.yaml
 
 Dockerfile
 docker-compose.yml
+
+# The Mac app is irrelevant to a Linux image.
+macapp/

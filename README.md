@@ -24,20 +24,21 @@ curl http://localhost:8000/v1/videos/abc123
 2. [Why local-first](#why-local-first)
 3. [Architecture](#architecture)
 4. [Quick start](#quick-start-under-10-minutes)
-5. [Installation](#installation)
-6. [Ollama setup and model installation](#ollama-setup-and-model-installation)
-7. [Running the API](#running-the-api)
-8. [Running the CLI](#running-the-cli)
-9. [Web UI](#web-ui)
-10. [API reference](#api-reference)
-11. [Editing](#editing)
-12. [Configuration](#configuration)
-13. [Mac notes and model sizing](#mac-notes-and-model-sizing)
-14. [Docker](#docker)
-15. [Testing](#testing)
-16. [Project layout](#project-layout)
-17. [Design decisions](#design-decisions)
-18. [Roadmap](#roadmap)
+5. [The Mac app](#the-mac-app)
+6. [Installation](#installation)
+7. [Ollama setup and model installation](#ollama-setup-and-model-installation)
+8. [Running the API](#running-the-api)
+9. [Running the CLI](#running-the-cli)
+10. [Web UI](#web-ui)
+11. [API reference](#api-reference)
+12. [Editing](#editing)
+13. [Configuration](#configuration)
+14. [Mac notes and model sizing](#mac-notes-and-model-sizing)
+15. [Docker](#docker)
+16. [Testing](#testing)
+17. [Project layout](#project-layout)
+18. [Design decisions](#design-decisions)
+19. [Roadmap](#roadmap)
 
 ---
 
@@ -245,6 +246,9 @@ uvicorn video_understanding.api.app:app --reload
 open http://localhost:8000
 ```
 
+If you would rather not do any of that by hand, build the Mac app instead — it
+performs every step above for you. See [The Mac app](#the-mac-app).
+
 `video-understand check` tells you exactly what is missing and how to fix it
 before you spend time on a video:
 
@@ -258,6 +262,46 @@ before you spend time on a video:
   !! llm            ollama is running but model 'qwen3:8b' is not installed
                     (run: ollama pull qwen3:8b)
 ```
+
+---
+
+## The Mac app
+
+Everything above, without a terminal. `macapp/` builds a real macOS application
+that installs its own runtime, runs the API for you, and puts the web UI in an
+app window.
+
+```bash
+make mac-install       # build, install to /Applications, launch
+make mac               # build only, into macapp/build/
+```
+
+The only prerequisite is the Xcode Command Line Tools
+(`xcode-select --install`) — there is no Xcode project, and `build.sh` calls
+`swiftc` directly.
+
+From then on, double-clicking the app is the whole workflow. On first launch it:
+
+- finds a Python 3.12+ and FFmpeg, and offers to install either one with
+  Homebrew if it is missing — with the output shown in the window, not hidden;
+- builds a private virtualenv in `~/Library/Application Support/VideoUnderstanding`
+  and installs this package into it with the `whisper` and `scenes` extras;
+- writes a `config.yaml` with the models recommended for this machine's RAM,
+  using the [sizing table](#recommended-models-by-ram) below;
+- starts `uvicorn` on a free loopback port and waits for `/health`;
+- offers to install Ollama and pull the recommended models in the background —
+  optional, because the app is usable (with heuristic fallbacks) without them.
+
+Drop a video on the window or the dock icon, or press ⌘O. Renders and SRT files
+download to `~/Downloads`. **Diagnostics** (⌘D) is `video-understand check`
+inside the app, including the live `/health` payload.
+
+Nothing is hidden: the API is a normal FastAPI server on `127.0.0.1` while the
+app runs, the library lives in Application Support rather than inside the
+bundle, and deleting the app leaves your data intact.
+
+Full details, including where every file lives and what to do when something
+fails: [`macapp/README.md`](macapp/README.md).
 
 ---
 
@@ -764,6 +808,12 @@ video_understanding/
 │   └── files.py            Resolving a job back to its file on disk
 ├── cli/main.py             CLI
 └── web/                    index.html, app.css, app.js
+
+macapp/                     The Mac app (see macapp/README.md)
+├── build.sh                Stages the package, compiles, assembles the bundle
+├── Resources/Info.plist    Bundle metadata, loopback ATS exception, doc types
+├── scripts/MakeIcon.swift  Draws the icon at build time — no binary assets
+└── Sources/                AppKit front end: setup, server supervision, WKWebView
 ```
 
 ---
