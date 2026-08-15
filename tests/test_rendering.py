@@ -170,6 +170,26 @@ class TestRenderEdit:
         rendering.render_edit(sample_video, out, [(0.0, 2.0), (6.0, 8.0)], source_duration=9.0)
         assert extract_metadata(out).duration == pytest.approx(4.0, abs=0.5)
 
+    def test_every_segment_reaches_the_output(self, sample_video, tmp_path):
+        """Guards the failure mode where cutting silently keeps only one range.
+
+        A filter-graph concat can exit 0 having dropped all but one segment, so
+        the duration of a three-segment cut is the assertion that matters most
+        in this module.
+        """
+        out = tmp_path / "out.mp4"
+        rendering.render_edit(
+            sample_video, out, [(0.0, 1.5), (3.0, 4.5), (7.0, 8.5)], source_duration=9.0
+        )
+        assert extract_metadata(out).duration == pytest.approx(4.5, abs=0.5)
+
+    def test_a_segment_past_the_end_is_skipped_not_fatal(self, sample_video, tmp_path):
+        out = tmp_path / "out.mp4"
+        rendering.render_edit(
+            sample_video, out, [(0.0, 2.0), (30.0, 32.0)], source_duration=9.0
+        )
+        assert extract_metadata(out).duration == pytest.approx(2.0, abs=0.5)
+
     def test_preserves_the_audio_track(self, sample_video, tmp_path):
         out = tmp_path / "out.mp4"
         rendering.render_edit(sample_video, out, [(1.0, 4.0)], source_duration=9.0)

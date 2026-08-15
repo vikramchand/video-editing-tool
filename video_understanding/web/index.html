@@ -1,462 +1,354 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Video Understanding</title>
-<link rel="icon" href="data:,">
-
-<style>
-  :root {
-    --bg: #0f1115; --panel: #171a21; --panel-2: #1d212a; --border: #2a2f3a;
-    --text: #e6e9ef; --muted: #9aa4b8; --accent: #5b9dff; --good: #3ecf8e;
-    --warn: #f5a524; --bad: #f4526b; --radius: 8px;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  header {
-    padding: 18px 24px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
-  }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
-  header .sub { color: var(--muted); font-size: 12px; }
-  header .spacer { flex: 1; }
-  main { max-width: 1240px; margin: 0 auto; padding: 24px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-
-  .panel {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px; margin-bottom: 20px;
-  }
-  .panel h2 {
-    font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
-    color: var(--muted); margin: 0 0 12px; font-weight: 600;
-  }
-
-  #drop {
-    border: 2px dashed var(--border); border-radius: var(--radius);
-    padding: 40px 20px; text-align: center; cursor: pointer; transition: .15s;
-  }
-  #drop:hover, #drop.over { border-color: var(--accent); background: var(--panel-2); }
-  #drop.over { transform: scale(1.005); }
-  #drop p { margin: 6px 0; }
-  #drop .hint { color: var(--muted); font-size: 12px; }
-
-  .bar { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin: 10px 0 6px; }
-  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
-  .status-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
-
-  video { width: 100%; border-radius: var(--radius); background: #000; display: block; }
-
-  .scene, .hl, .edit, .seg {
-    padding: 8px 10px; border-radius: 6px; background: var(--panel-2);
-    margin-bottom: 6px; cursor: pointer; border-left: 3px solid transparent;
-  }
-  .scene:hover, .hl:hover, .edit:hover, .seg:hover { border-left-color: var(--accent); }
-  .t { color: var(--accent); font-variant-numeric: tabular-nums; font-size: 12px; margin-right: 8px; }
-  .meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
-  .tag {
-    display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px;
-    background: #263041; color: var(--muted); margin: 2px 4px 0 0;
-  }
-  .act { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-  .act.remove { color: var(--bad); } .act.trim { color: var(--warn); }
-  .act.caption, .act.zoom, .act.broll, .act.keep { color: var(--good); }
-
-  .timeline { position: relative; height: 40px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
-  .timeline .blk { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--bg); opacity: .85; }
-  .timeline .blk:hover { opacity: 1; outline: 1px solid var(--text); }
-  .timeline .marker { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; pointer-events: none; }
-
-  .scroll { max-height: 340px; overflow-y: auto; }
-  pre {
-    background: #0b0d12; border: 1px solid var(--border); border-radius: 6px;
-    padding: 12px; overflow: auto; max-height: 420px; font-size: 12px;
-    color: #c9d3e3; margin: 0;
-  }
-  button {
-    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-    padding: 7px 13px; border-radius: 6px; cursor: pointer; font-size: 13px;
-  }
-  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #08121f; font-weight: 600; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  label.chk { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; }
-  .err { color: var(--bad); } .ok { color: var(--good); } .muted { color: var(--muted); }
-  .warn-box { border-left: 3px solid var(--warn); padding: 6px 10px; background: var(--panel-2); border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
-  .hidden { display: none !important; }
-  .summary { font-size: 15px; line-height: 1.6; }
-</style>
+<meta name="description" content="Local-first video understanding: transcript, scenes, highlights and edit suggestions.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234C8DFF'/><path d='M13 10.5v11l9-5.5z' fill='white'/></svg>">
+<link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<header>
-  <h1>Video Understanding</h1>
-  <span class="sub">local-first &middot; no cloud APIs</span>
-  <span class="spacer"></span>
-  <span class="sub" id="health">checking&hellip;</span>
+
+<!-- Drag-anywhere overlay ------------------------------------------------- -->
+<div id="dropzone" class="dropzone" aria-hidden="true">
+  <div class="dropzone-card">
+    <svg viewBox="0 0 24 24" class="icon-xl" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+    <p>Drop to analyse</p>
+    <span>mp4 · mov · m4v · avi · mkv · webm</span>
+  </div>
+</div>
+
+<!-- Top bar -------------------------------------------------------------- -->
+<header class="topbar">
+  <a class="brand" href="#/" aria-label="Video Understanding home">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M9 7.5v9l7.5-4.5z" fill="currentColor" stroke="none"/></svg>
+    </span>
+    <span class="brand-text">
+      <strong>Video Understanding</strong>
+      <small>local-first · nothing leaves this machine</small>
+    </span>
+  </a>
+
+  <div class="topbar-actions">
+    <button class="btn btn-ghost" id="btn-shortcuts" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
+      <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+    </button>
+    <button class="btn btn-ghost" id="btn-theme" title="Toggle theme" aria-label="Toggle colour theme">
+      <svg viewBox="0 0 24 24" class="icon icon-moon" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg viewBox="0 0 24 24" class="icon icon-sun" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+    <a class="btn btn-ghost" href="/docs" target="_blank" rel="noopener" title="OpenAPI documentation">API</a>
+    <span class="health" id="health" title="System status">
+      <span class="dot"></span><span class="health-text">checking…</span>
+    </span>
+    <button class="btn btn-primary" id="btn-upload-top">
+      <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      Upload
+    </button>
+  </div>
 </header>
 
-<main>
-  <!-- Upload ------------------------------------------------------------ -->
-  <div class="panel" id="upload-panel">
-    <div id="drop">
-      <p><strong>Drop a video here</strong> or click to choose a file</p>
-      <p class="hint" id="limits">mp4, mov, m4v, avi, mkv, webm</p>
-    </div>
-    <input type="file" id="file" accept="video/*" class="hidden">
-    <div id="progress" class="hidden">
-      <div class="bar"><div id="bar-fill"></div></div>
-      <div class="status-row">
-        <span id="stage">queued</span><span id="pct">0%</span>
+<div class="shell">
+  <!-- Library ------------------------------------------------------------ -->
+  <aside class="sidebar" id="sidebar" aria-label="Video library">
+    <div class="sidebar-head">
+      <div class="search">
+        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <input type="search" id="search" placeholder="Search library" aria-label="Search library" autocomplete="off" spellcheck="false">
+        <kbd>/</kbd>
+      </div>
+      <div class="filters" id="filters" role="tablist" aria-label="Filter by status"></div>
+      <div class="sort-row">
+        <label class="sr-only" for="sort">Sort library</label>
+        <select id="sort">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="longest">Longest</option>
+          <option value="shortest">Shortest</option>
+          <option value="name">Name (A–Z)</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh" title="Refresh library" aria-label="Refresh library">
+          <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
+        </button>
       </div>
     </div>
-    <div id="error" class="err hidden" style="margin-top:10px"></div>
+
+    <div class="library" id="library" role="list"></div>
+
+    <div class="sidebar-foot">
+      <button class="btn btn-subtle btn-block" id="btn-more">Load more</button>
+      <p class="library-count" id="library-count"></p>
+    </div>
+  </aside>
+
+  <!-- Workspace ---------------------------------------------------------- -->
+  <main class="workspace" id="workspace">
+
+    <!-- Empty state -->
+    <section class="view view-empty" id="view-empty">
+      <div class="empty-card">
+        <div class="empty-art" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>
+        </div>
+        <h1>Understand a video</h1>
+        <p>Drop a clip anywhere on this page, or choose a file. It is transcribed, split into scenes, described and turned into edit suggestions — entirely on this machine.</p>
+        <button class="btn btn-primary btn-lg" id="btn-upload-empty">Choose a video</button>
+        <ul class="empty-steps">
+          <li><b>1</b> Transcribe speech with Whisper</li>
+          <li><b>2</b> Detect scenes and sample frames</li>
+          <li><b>3</b> Describe frames with a vision model</li>
+          <li><b>4</b> Reason over it for highlights and cuts</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Processing state -->
+    <section class="view view-progress hidden" id="view-progress">
+      <div class="progress-card">
+        <h2 id="progress-title">Processing</h2>
+        <p class="muted" id="progress-file"></p>
+        <div class="progress-ring-row">
+          <div class="ring" id="progress-ring" style="--p:0"><span id="progress-pct">0%</span></div>
+          <ol class="stages" id="stages"></ol>
+        </div>
+        <p class="progress-hint muted" id="progress-hint">Local models are doing the work — a 60-second clip typically takes a couple of minutes. You can browse other videos while this runs.</p>
+        <div class="err hidden" id="progress-error"></div>
+        <div class="row hidden" id="progress-actions" style="margin-top:14px">
+          <button class="btn btn-primary" id="btn-retry">Try another file</button>
+          <button class="btn btn-subtle" id="btn-discard">Remove from library</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detail state -->
+    <section class="view view-detail hidden" id="view-detail">
+      <div class="detail-main">
+        <div class="stage-wrap">
+          <div class="stage" id="stage">
+            <video id="player" playsinline preload="metadata"></video>
+            <div class="stage-overlay" id="stage-overlay">
+              <button class="big-play" id="big-play" aria-label="Play">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5v11l9-5.5z" fill="currentColor" stroke="none"/></svg>
+              </button>
+            </div>
+            <div class="stage-caption hidden" id="stage-caption"></div>
+            <div class="stage-badge" id="stage-badge"></div>
+          </div>
+        </div>
+
+        <!-- Transport -->
+        <div class="transport" id="transport">
+          <button class="tbtn" id="btn-play" aria-label="Play/pause (space)">
+            <svg viewBox="0 0 24 24" class="i-play" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></svg>
+            <svg viewBox="0 0 24 24" class="i-pause" aria-hidden="true"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <button class="tbtn" id="btn-back" aria-label="Back 5 seconds" title="Back 5s (←)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 4 12l7 7M20 5l-7 7 7 7"/></svg>
+          </button>
+          <button class="tbtn" id="btn-fwd" aria-label="Forward 5 seconds" title="Forward 5s (→)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"/></svg>
+          </button>
+          <div class="time" id="time"><span id="t-cur">0:00.0</span><span class="sep">/</span><span id="t-dur">0:00</span></div>
+
+          <div class="transport-spacer"></div>
+
+          <div class="scene-nav">
+            <button class="tbtn" id="btn-prev-scene" title="Previous scene ([)" aria-label="Previous scene">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5 8 12l10 7zM6 5v14"/></svg>
+            </button>
+            <span class="scene-pos" id="scene-pos">—</span>
+            <button class="tbtn" id="btn-next-scene" title="Next scene (])" aria-label="Next scene">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 5 10 7L6 19zM18 5v14"/></svg>
+            </button>
+          </div>
+
+          <label class="ctl" title="Playback speed">
+            <select id="speed" aria-label="Playback speed">
+              <option value="0.25">0.25×</option>
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="1.5">1.5×</option>
+              <option value="2">2×</option>
+            </select>
+          </label>
+
+          <button class="tbtn" id="btn-mute" aria-label="Mute (m)">
+            <svg viewBox="0 0 24 24" class="i-vol" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/></svg>
+            <svg viewBox="0 0 24 24" class="i-muted" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM17 10l4 4m0-4-4 4"/></svg>
+          </button>
+          <input type="range" id="volume" min="0" max="1" step="0.02" value="1" aria-label="Volume">
+
+          <button class="tbtn" id="btn-captions" title="Toggle captions (c)" aria-label="Toggle captions">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10 10.5a2.5 2.5 0 1 0 0 3M17 10.5a2.5 2.5 0 1 0 0 3"/></svg>
+          </button>
+          <button class="tbtn" id="btn-full" title="Fullscreen (f)" aria-label="Fullscreen">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          </button>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-panel">
+          <div class="timeline-head">
+            <h3>Timeline</h3>
+            <div class="timeline-legend">
+              <span><i class="sw sw-scene"></i>Scenes</span>
+              <span><i class="sw sw-speech"></i>Speech</span>
+              <span><i class="sw sw-hl"></i>Highlights</span>
+              <span><i class="sw sw-cut"></i>Edits</span>
+            </div>
+            <div class="zoom">
+              <button class="tbtn" id="btn-zoom-out" aria-label="Zoom out">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-3.2-3.2"/></svg>
+              </button>
+              <span id="zoom-level">1×</span>
+              <button class="tbtn" id="btn-zoom-in" aria-label="Zoom in">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-3.2-3.2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="timeline-frame">
+            <div class="timeline-gutter" aria-hidden="true">
+              <div class="g-row g-ruler"></div>
+              <div class="g-row g-film">Film</div>
+              <div class="g-row g-scenes">Scenes</div>
+              <div class="g-row g-speech">Speech</div>
+              <div class="g-row g-highlights">Highlights</div>
+              <div class="g-row g-edits">Edits</div>
+            </div>
+            <div class="timeline-scroll" id="timeline-scroll">
+              <div class="timeline" id="timeline">
+                <div class="ruler" id="ruler"></div>
+                <div class="track track-film" id="track-film"></div>
+                <div class="track track-scenes" id="track-scenes"></div>
+                <div class="track track-speech" id="track-speech"></div>
+                <div class="track track-highlights" id="track-highlights"></div>
+                <div class="track track-edits" id="track-edits"></div>
+                <div class="playhead" id="playhead"><span class="playhead-grip"></span></div>
+                <div class="hover-line" id="hover-line"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-tooltip hidden" id="tl-tooltip"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-panel">
+          <div class="tabs" role="tablist" id="tabs">
+            <button class="tab active" role="tab" data-tab="transcript" aria-selected="true">Transcript <span class="count" id="c-transcript">0</span></button>
+            <button class="tab" role="tab" data-tab="scenes" aria-selected="false">Scenes <span class="count" id="c-scenes">0</span></button>
+            <button class="tab" role="tab" data-tab="highlights" aria-selected="false">Highlights <span class="count" id="c-highlights">0</span></button>
+            <button class="tab" role="tab" data-tab="edits" aria-selected="false">Edits <span class="count" id="c-edits">0</span></button>
+            <button class="tab" role="tab" data-tab="entities" aria-selected="false">People &amp; objects</button>
+            <button class="tab" role="tab" data-tab="json" aria-selected="false">JSON</button>
+            <div class="tab-tools">
+              <label class="chk" id="follow-wrap" title="Keep the transcript scrolled to the current moment">
+                <input type="checkbox" id="opt-follow" checked> Follow playback
+              </label>
+            </div>
+          </div>
+
+          <div class="tab-body">
+            <div class="tab-pane active" id="pane-transcript">
+              <div class="pane-toolbar">
+                <div class="search search-sm">
+                  <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+                  <input type="search" id="transcript-search" placeholder="Search transcript" aria-label="Search transcript">
+                </div>
+                <span class="muted" id="transcript-lang"></span>
+                <div class="spacer"></div>
+                <button class="btn btn-subtle btn-sm" id="btn-srt">Download .srt</button>
+                <button class="btn btn-subtle btn-sm" id="btn-copy-transcript">Copy text</button>
+              </div>
+              <div class="list scroll" id="transcript"></div>
+            </div>
+
+            <div class="tab-pane" id="pane-scenes"><div class="scene-grid scroll" id="scenes"></div></div>
+            <div class="tab-pane" id="pane-highlights"><div class="list scroll" id="highlights"></div></div>
+            <div class="tab-pane" id="pane-edits"><div class="list scroll" id="edits"></div></div>
+            <div class="tab-pane" id="pane-entities"><div class="scroll" id="entities"></div></div>
+            <div class="tab-pane" id="pane-json">
+              <div class="pane-toolbar">
+                <button class="btn btn-subtle btn-sm" id="btn-copy">Copy JSON</button>
+                <button class="btn btn-subtle btn-sm" id="btn-json">Download JSON</button>
+              </div>
+              <pre class="scroll" id="json"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inspector ---------------------------------------------------- -->
+      <aside class="inspector" id="inspector" aria-label="Video details">
+        <div class="card card-summary">
+          <div class="card-head">
+            <h3 id="v-title">Untitled</h3>
+            <button class="btn btn-ghost btn-sm" id="btn-delete" title="Delete this video" aria-label="Delete video">
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>
+          <p class="filename muted" id="v-filename"></p>
+          <p class="summary" id="v-summary"></p>
+          <div class="chips" id="v-topics"></div>
+          <dl class="specs" id="v-specs"></dl>
+          <div id="v-warnings"></div>
+        </div>
+
+        <div class="card">
+          <h3>Export</h3>
+          <div class="opts">
+            <label class="chk"><input type="checkbox" id="opt-remove" checked> <span>Apply suggested removals</span></label>
+            <label class="chk"><input type="checkbox" id="opt-highlights"> <span>Highlights only</span></label>
+            <label class="chk"><input type="checkbox" id="opt-captions"> <span>Burn captions into video</span></label>
+          </div>
+          <div class="render-preview" id="render-preview"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-block" id="btn-render">
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M4 4h16v16H4zM9 9v6l5-3z"/></svg>
+              Render edit
+            </button>
+            <button class="btn btn-subtle btn-block" id="btn-download" disabled>Download edit</button>
+          </div>
+          <p class="render-status muted" id="render-status"></p>
+        </div>
+
+        <div class="card">
+          <h3>Providers</h3>
+          <dl class="specs" id="v-providers"></dl>
+        </div>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<input type="file" id="file" accept="video/mp4,video/quicktime,video/x-m4v,video/x-msvideo,video/x-matroska,video/webm,.mp4,.mov,.m4v,.avi,.mkv,.webm" multiple hidden>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- Shortcuts dialog ------------------------------------------------------ -->
+<div class="modal hidden" id="modal-shortcuts" role="dialog" aria-modal="true" aria-labelledby="sc-title">
+  <div class="modal-card">
+    <div class="card-head"><h3 id="sc-title">Keyboard shortcuts</h3>
+      <button class="btn btn-ghost btn-sm" id="btn-close-shortcuts" aria-label="Close">✕</button>
+    </div>
+    <dl class="shortcuts">
+      <div><dt><kbd>Space</kbd> / <kbd>K</kbd></dt><dd>Play or pause</dd></div>
+      <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Skip 5 seconds</dd></div>
+      <div><dt><kbd>J</kbd> <kbd>L</kbd></dt><dd>Skip 10 seconds</dd></div>
+      <div><dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Step one frame</dd></div>
+      <div><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next scene</dd></div>
+      <div><dt><kbd>M</kbd></dt><dd>Mute</dd></div>
+      <div><dt><kbd>C</kbd></dt><dd>Captions</dd></div>
+      <div><dt><kbd>F</kbd></dt><dd>Fullscreen</dd></div>
+      <div><dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd>Jump to 0–90% of the video</dd></div>
+      <div><dt><kbd>/</kbd></dt><dd>Search the library</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>This dialog</dd></div>
+    </dl>
   </div>
+</div>
 
-  <!-- Results ----------------------------------------------------------- -->
-  <div id="results" class="hidden">
-    <div class="grid">
-      <div>
-        <div class="panel">
-          <h2>Preview</h2>
-          <video id="player" controls preload="metadata"></video>
-          <div class="timeline" id="timeline" style="margin-top:10px"></div>
-          <div class="status-row" style="margin-top:6px">
-            <span class="muted" id="tl-left">0.0s</span>
-            <span class="muted" id="tl-hint">scene timeline &mdash; click to seek</span>
-            <span class="muted" id="tl-right"></span>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>Summary</h2>
-          <div id="title" style="font-weight:600;margin-bottom:6px"></div>
-          <div class="summary" id="summary"></div>
-          <div id="topics" style="margin-top:8px"></div>
-          <div class="meta" id="stats" style="margin-top:10px"></div>
-          <div id="warnings" style="margin-top:10px"></div>
-        </div>
-
-        <div class="panel">
-          <h2>Highlights</h2>
-          <div id="highlights"></div>
-        </div>
-
-        <div class="panel">
-          <h2>Edit &amp; Render</h2>
-          <div id="edits" class="scroll" style="margin-bottom:12px"></div>
-          <div class="row">
-            <label class="chk"><input type="checkbox" id="opt-remove" checked> apply removals</label>
-            <label class="chk"><input type="checkbox" id="opt-captions"> burn captions</label>
-            <label class="chk"><input type="checkbox" id="opt-highlights"> highlights only</label>
-          </div>
-          <div class="row" style="margin-top:10px">
-            <button class="primary" id="btn-render">Render edit</button>
-            <button id="btn-download" disabled>Download</button>
-            <button id="btn-srt">Download .srt</button>
-            <span id="render-status" class="muted"></span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div class="panel">
-          <h2>Scenes (<span id="scene-count">0</span>)</h2>
-          <div id="scenes" class="scroll"></div>
-        </div>
-
-        <div class="panel">
-          <h2>Transcript (<span id="seg-count">0</span>)</h2>
-          <div id="transcript" class="scroll"></div>
-        </div>
-
-        <div class="panel">
-          <h2>Raw JSON</h2>
-          <div class="row" style="margin-bottom:10px">
-            <button id="btn-copy">Copy JSON</button>
-            <button id="btn-json">Download JSON</button>
-          </div>
-          <pre id="json"></pre>
-        </div>
-      </div>
-    </div>
-  </div>
-</main>
-
-<script>
-"use strict";
-
-const $ = (id) => document.getElementById(id);
-const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-let videoId = null;
-let result = null;
-let poller = null;
-
-// --- Health -----------------------------------------------------------------
-fetch("/health").then((r) => r.json()).then((h) => {
-  const cls = h.status === "ok" ? "ok" : "err";
-  const bad = Object.entries(h.providers)
-    .filter(([, v]) => !v.startsWith("ok")).map(([k]) => k);
-  $("health").innerHTML =
-    `<span class="${cls}">${h.status}</span> &middot; v${h.version}` +
-    (bad.length ? ` &middot; <span class="err">unavailable: ${bad.join(", ")}</span>` : "");
-}).catch(() => { $("health").innerHTML = '<span class="err">API unreachable</span>'; });
-
-fetch("/v1/config").then((r) => r.json()).then((c) => {
-  $("limits").textContent =
-    `${c.video.allowed_extensions.join(", ")} · max ${c.video.max_duration_seconds}s · ` +
-    `max ${c.video.max_upload_mb}MB · ${c.video.frames_per_scene} frames/scene`;
-}).catch(() => {});
-
-// --- Upload -----------------------------------------------------------------
-const drop = $("drop");
-drop.addEventListener("click", () => $("file").click());
-drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-drop.addEventListener("drop", (e) => {
-  e.preventDefault();
-  drop.classList.remove("over");
-  if (e.dataTransfer.files.length) upload(e.dataTransfer.files[0]);
-});
-$("file").addEventListener("change", (e) => {
-  if (e.target.files.length) upload(e.target.files[0]);
-});
-
-function showError(message) {
-  $("error").textContent = message;
-  $("error").classList.remove("hidden");
-  $("progress").classList.add("hidden");
-}
-
-async function upload(file) {
-  $("error").classList.add("hidden");
-  $("results").classList.add("hidden");
-  $("progress").classList.remove("hidden");
-  setProgress("uploading", 0.02);
-
-  const body = new FormData();
-  body.append("file", file);
-
-  let response;
-  try {
-    response = await fetch("/v1/videos", { method: "POST", body });
-  } catch (err) {
-    return showError("Upload failed: " + err.message);
-  }
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) return showError(data.detail || `Upload failed (HTTP ${response.status})`);
-
-  videoId = data.video_id;
-  setProgress("queued", 0.05);
-  poll();
-}
-
-function setProgress(stage, fraction) {
-  $("stage").textContent = String(stage).replace(/_/g, " ");
-  $("pct").textContent = Math.round(fraction * 100) + "%";
-  $("bar-fill").style.width = (fraction * 100) + "%";
-}
-
-function poll() {
-  clearInterval(poller);
-  poller = setInterval(async () => {
-    let status;
-    try {
-      status = await (await fetch(`/v1/videos/${videoId}/status`)).json();
-    } catch { return; }
-
-    setProgress(status.stage, status.progress);
-
-    if (status.status === "completed") {
-      clearInterval(poller);
-      loadResult();
-    } else if (status.status === "failed") {
-      clearInterval(poller);
-      showError(status.error || "Processing failed");
-    }
-  }, 900);
-}
-
-async function loadResult() {
-  const data = await (await fetch(`/v1/videos/${videoId}`)).json();
-  result = data.result;
-  $("progress").classList.add("hidden");
-  $("results").classList.remove("hidden");
-  render();
-  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-// --- Rendering the result ---------------------------------------------------
-function render() {
-  const player = $("player");
-  player.src = `/v1/videos/${videoId}/source`;
-
-  $("title").textContent = result.title || "";
-  $("summary").textContent = result.summary || "(no summary)";
-  $("topics").innerHTML = (result.topics || [])
-    .map((t) => `<span class="tag">${esc(t)}</span>`).join("");
-
-  const m = result.metadata || {};
-  $("stats").textContent =
-    `${result.duration.toFixed(1)}s · ${m.width}×${m.height} · ${(m.fps || 0).toFixed(1)} fps · ` +
-    `${result.scenes.length} scenes · ${result.transcript.length} transcript segments · ` +
-    `${result.highlights.length} highlights`;
-
-  $("warnings").innerHTML = (result.warnings || [])
-    .map((w) => `<div class="warn-box">${esc(w)}</div>`).join("");
-
-  renderTimeline();
-  renderScenes();
-  renderHighlights();
-  renderEdits();
-  renderTranscript();
-
-  $("json").textContent = JSON.stringify(result, null, 2);
-  $("tl-right").textContent = result.duration.toFixed(1) + "s";
-}
-
-function seek(t) {
-  const player = $("player");
-  player.currentTime = t;
-  player.play().catch(() => {});
-}
-
-function renderTimeline() {
-  const total = result.duration || 1;
-  const timeline = $("timeline");
-  const hues = [210, 150, 35, 280, 0, 190, 100, 320];
-
-  timeline.innerHTML = result.scenes.map((scene, index) => {
-    const left = (scene.start / total) * 100;
-    const width = Math.max(0.4, ((scene.end - scene.start) / total) * 100);
-    const light = 26 + Math.round(scene.importance * 34);
-    return `<div class="blk" data-t="${scene.start}"
-      style="left:${left}%;width:${width}%;background:hsl(${hues[index % hues.length]} 55% ${light}%)"
-      title="Scene ${scene.id}: ${esc(scene.description).slice(0, 90)}"></div>`;
-  }).join("") + '<div class="marker" id="tl-marker" style="left:0"></div>';
-
-  timeline.querySelectorAll(".blk").forEach((block) =>
-    block.addEventListener("click", () => seek(parseFloat(block.dataset.t))));
-
-  $("player").addEventListener("timeupdate", () => {
-    const marker = $("tl-marker");
-    if (marker) marker.style.left = (($("player").currentTime / total) * 100) + "%";
-    $("tl-left").textContent = $("player").currentTime.toFixed(1) + "s";
-  });
-}
-
-function renderScenes() {
-  $("scene-count").textContent = result.scenes.length;
-  $("scenes").innerHTML = result.scenes.map((scene) => {
-    const tags = [
-      ...scene.people.map((p) => `<span class="tag">${esc(p)}</span>`),
-      ...scene.objects.map((o) => `<span class="tag">${esc(o)}</span>`),
-      ...scene.actions.map((a) => `<span class="tag">${esc(a)}</span>`),
-    ].join("");
-    return `<div class="scene" data-t="${scene.start}">
-      <div><span class="t">${fmt(scene.start)}–${fmt(scene.end)}</span>
-        <span class="muted">importance ${scene.importance.toFixed(2)}</span></div>
-      <div>${esc(scene.description)}</div>
-      ${tags ? `<div>${tags}</div>` : ""}
-      ${scene.transcript_text ? `<div class="meta">“${esc(scene.transcript_text.slice(0, 160))}”</div>` : ""}
-    </div>`;
-  }).join("");
-  bindSeek("#scenes .scene");
-}
-
-function renderHighlights() {
-  $("highlights").innerHTML = result.highlights.length
-    ? result.highlights.map((h) => `<div class="hl" data-t="${h.start}">
-        <div><span class="t">${fmt(h.start)}–${fmt(h.end)}</span>
-          <strong>${esc(h.title || "Highlight")}</strong>
-          <span class="muted">score ${h.score.toFixed(2)}</span></div>
-        <div class="meta">${esc(h.reason)}</div></div>`).join("")
-    : '<div class="muted">No highlights identified.</div>';
-  bindSeek("#highlights .hl");
-}
-
-function renderEdits() {
-  $("edits").innerHTML = result.edit_suggestions.length
-    ? result.edit_suggestions.map((e) => `<div class="edit" data-t="${e.start}">
-        <div><span class="t">${fmt(e.start)}–${fmt(e.end)}</span>
-          <span class="act ${esc(e.action)}">${esc(e.action)}</span></div>
-        <div class="meta">${esc(e.reason)}</div></div>`).join("")
-    : '<div class="muted">No edit suggestions.</div>';
-  bindSeek("#edits .edit");
-}
-
-function renderTranscript() {
-  $("seg-count").textContent = result.transcript.length;
-  $("transcript").innerHTML = result.transcript.length
-    ? result.transcript.map((s) => `<div class="seg" data-t="${s.start}">
-        <span class="t">${fmt(s.start)}</span>${esc(s.text)}</div>`).join("")
-    : '<div class="muted">No speech detected.</div>';
-  bindSeek("#transcript .seg");
-}
-
-function bindSeek(selector) {
-  document.querySelectorAll(selector).forEach((element) =>
-    element.addEventListener("click", () => seek(parseFloat(element.dataset.t))));
-}
-
-// --- Actions ----------------------------------------------------------------
-$("btn-render").addEventListener("click", async () => {
-  const button = $("btn-render");
-  button.disabled = true;
-  $("render-status").textContent = "rendering…";
-
-  try {
-    const response = await fetch(`/v1/videos/${videoId}/render`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apply_removals: $("opt-remove").checked,
-        burn_captions: $("opt-captions").checked,
-        highlights_only: $("opt-highlights").checked,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
-
-    $("render-status").innerHTML =
-      `<span class="ok">done</span> ${data.source_duration.toFixed(1)}s → ` +
-      `${data.output_duration.toFixed(1)}s (${data.segments_kept} segment(s))`;
-    $("btn-download").disabled = false;
-  } catch (err) {
-    $("render-status").innerHTML = `<span class="err">${esc(err.message)}</span>`;
-  } finally {
-    button.disabled = false;
-  }
-});
-
-$("btn-download").addEventListener("click", () => {
-  window.location = `/v1/videos/${videoId}/render/download`;
-});
-$("btn-srt").addEventListener("click", () => {
-  window.location = `/v1/videos/${videoId}/transcript.srt`;
-});
-$("btn-copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText(JSON.stringify(result, null, 2));
-  $("btn-copy").textContent = "Copied";
-  setTimeout(() => ($("btn-copy").textContent = "Copy JSON"), 1400);
-});
-$("btn-json").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${videoId}.json`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-});
-</script>
+<script src="/static/app.js"></script>
 </body>
 </html>

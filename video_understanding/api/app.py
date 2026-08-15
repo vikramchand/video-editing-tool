@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from video_understanding import __version__
 from video_understanding.api.dependencies import AppState
-from video_understanding.api.routes import health, videos
+from video_understanding.api.routes import health, library, videos
 from video_understanding.core.config import Settings, get_settings
 from video_understanding.core.errors import (
     JobNotFoundError,
@@ -81,6 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(videos.router)
+    app.include_router(library.router)
 
     _register_exception_handlers(app)
     _mount_web_ui(app)

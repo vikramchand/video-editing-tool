@@ -1,4 +1,4 @@
-.PHONY: help install install-all dev test test-fast lint format run cli check docker docker-up clean
+.PHONY: help install install-all dev test test-fast lint format run cli check docker docker-up clean reset-data
 
 PYTHON ?= python3.12
 VENV   ?= .venv
@@ -15,6 +15,8 @@ help:
 	@echo "make demo         - process the bundled example with mock providers"
 	@echo "make docker-up    - docker compose up --build"
 	@echo "make clean        - remove build artefacts and caches"
+	@echo "make reset-data   - delete the database and every stored video (asks first;"
+	@echo "                    FORCE=1 skips the prompt)"
 
 $(VENV):
 	$(PYTHON) -m venv $(VENV)
@@ -50,6 +52,11 @@ demo:
 
 docker-up:
 	docker compose up --build
+
+# Paths come from Settings, so a relocated DATA_DIR/DATABASE_PATH is honoured.
+# `clean` below only touches build artefacts; this touches your actual data.
+reset-data:
+	$(BIN)/video-understand reset $(if $(FORCE),--yes,)
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .coverage htmlcov

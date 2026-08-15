@@ -184,7 +184,7 @@ def render_edit(
             # Nothing to cut; burn captions straight from the source.
             cut_target = video_path
         else:
-            _cut_and_concat(video_path, cut_target, keep)
+            _cut_and_concat(video_path, cut_target, keep, tmp_dir)
 
         if needs_captions:
             _burn_captions(cut_target, output_path, captions or [], tmp_dir)
@@ -196,58 +196,93 @@ def render_edit(
     return output_path
 
 
-def _cut_and_concat(video_path: Path, output_path: Path, keep: list[Segment]) -> None:
-    """Single-pass trim + concat using a filter graph.
+def _cut_and_concat(
+    video_path: Path, output_path: Path, keep: list[Segment], work_dir: Path
+) -> None:
+    """Trim each kept range to its own file, then join them.
 
-    Frame-accurate, and avoids the concat-demuxer's requirement that every
-    segment start on a keyframe (which is what makes naive `-ss`/`-c copy`
-    trimming drift).
+    The obvious alternative — one `filter_complex` with a `trim` per segment
+    feeding `concat` — is a trap. The trims all read the same input pad, and on
+    ffmpeg 7.x the first branch to reach its end tears the graph down: the
+    command succeeds, and the output silently contains only one of the
+    segments. Cutting segment by segment costs one extra process per cut and
+    cannot fail that way.
+
+    Each part is re-encoded with identical settings, so `-c copy` on the join
+    is both lossless and safe; frame accuracy comes from re-encoding rather
+    than from landing on a keyframe.
     """
     with_audio = has_audio_stream(video_path)
+    logger.info("cutting %d segment(s) from %s", len(keep), video_path.name)
 
-    filters: list[str] = []
-    concat_inputs: list[str] = []
+    if len(keep) == 1:
+        if not _encode_segment(video_path, output_path, keep[0], with_audio=with_audio):
+            raise RenderError("the segment to keep produced no video")
+        return
 
-    for index, (start, end) in enumerate(keep):
-        filters.append(
-            f"[0:v]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS[v{index}]"
-        )
-        concat_inputs.append(f"[v{index}]")
-        if with_audio:
-            filters.append(
-                f"[0:a]atrim=start={start:.3f}:end={end:.3f},asetpts=PTS-STARTPTS[a{index}]"
-            )
-            concat_inputs.append(f"[a{index}]")
+    parts: list[Path] = []
+    for index, segment in enumerate(keep):
+        part = work_dir / f"part_{index:03d}.mp4"
+        if _encode_segment(video_path, part, segment, with_audio=with_audio):
+            parts.append(part)
+        else:
+            # A range past the end of the file yields nothing. Dropping it beats
+            # failing the whole render over one bad suggestion.
+            logger.warning("segment %.2f-%.2f produced no video; skipping", *segment)
 
-    streams_per_segment = 2 if with_audio else 1
-    filters.append(
-        "".join(concat_inputs)
-        + f"concat=n={len(keep)}:v=1:a={1 if with_audio else 0}"
-        + ("[outv][outa]" if with_audio else "[outv]")
-    )
+    if not parts:
+        raise RenderError("no segment produced any video")
+
+    _concat_parts(parts, output_path, work_dir)
+
+
+def _encode_segment(
+    video_path: Path, destination: Path, segment: Segment, *, with_audio: bool
+) -> bool:
+    """Encode one time range. Returns False if ffmpeg produced nothing."""
+    start, end = segment
+    duration = max(0.0, end - start)
+    if duration <= 0:
+        return False
 
     args = [
         "-y",
+        # Seeking before -i is the fast path, and is still frame-accurate here
+        # because the segment is re-encoded rather than stream-copied.
+        "-ss", f"{start:.3f}",
         "-i", str(video_path),
-        "-filter_complex", ";".join(filters),
-        "-map", "[outv]",
-    ]
-    if with_audio:
-        args += ["-map", "[outa]", "-c:a", "aac", "-b:a", "128k"]
-    args += [
+        "-t", f"{duration:.3f}",
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-crf", "22",
         "-pix_fmt", "yuv420p",   # required for QuickTime/Safari playback
-        "-movflags", "+faststart",
-        "-loglevel", "error",
-        str(output_path),
     ]
+    args += ["-c:a", "aac", "-b:a", "128k"] if with_audio else ["-an"]
+    args += ["-loglevel", "error", str(destination)]
 
-    logger.info(
-        "cutting %d segment(s) (%d stream(s) each)", len(keep), streams_per_segment
-    )
     ffmpeg_utils.run(args)
+    return destination.is_file() and destination.stat().st_size > 0
+
+
+def _concat_parts(parts: list[Path], output_path: Path, work_dir: Path) -> None:
+    """Join identically-encoded parts without re-encoding them."""
+    listing = work_dir / "concat.txt"
+    listing.write_text("".join(f"file '{part.name}'\n" for part in parts), encoding="utf-8")
+
+    ffmpeg_utils.run(
+        [
+            "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", listing.name,
+            "-c", "copy",
+            "-movflags", "+faststart",
+            "-loglevel", "error",
+            str(output_path.resolve()),
+        ],
+        # Bare filenames plus a cwd sidestep the concat demuxer's escaping rules.
+        cwd=str(work_dir),
+    )
 
 
 def _burn_captions(
@@ -296,3 +331,13 @@ def export_srt(segments: list[TranscriptSegment], output_path: str | Path) -> Pa
 
 def total_duration(segments: list[Segment]) -> float:
     return round(sum(end - start for start, end in segments), 3)
+
+
+def render_path(renders_dir: str | Path, video_id: str) -> Path:
+    """Where a video's rendered edit lives.
+
+    One definition, because three call sites need to agree on it: the renderer
+    writes here, the download endpoint reads here, and the library asks whether
+    the file exists to decide if a card offers a download.
+    """
+    return Path(renders_dir) / f"{video_id}_edit.mp4"

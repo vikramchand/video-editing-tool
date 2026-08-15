@@ -167,6 +167,10 @@ class Settings(BaseSettings):
         return self.data_dir / "renders"
 
     @property
+    def thumbnails_dir(self) -> Path:
+        return self.data_dir / "thumbnails"
+
+    @property
     def db_path(self) -> Path:
         return self.database_path or (self.data_dir / "videos.db")
 
@@ -192,6 +196,7 @@ class Settings(BaseSettings):
             self.uploads_dir,
             self.work_dir,
             self.renders_dir,
+            self.thumbnails_dir,
             self.output_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)

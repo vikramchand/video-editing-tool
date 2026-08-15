@@ -59,11 +59,14 @@ def _make_clip(path: Path, source: str, seconds: float, *, audio: bool, freq: in
     args = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "lavfi", "-i", f"{source}=s=320x240:r=25",
-        "-t", str(seconds),
     ]
     if audio:
         args += ["-f", "lavfi", "-i", f"sine=frequency={freq}:duration={seconds}"]
-    args += ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
+    # `-t` has to sit here, among the *output* options. Placed before an input
+    # it bounds that input instead, leaving the lavfi video source unbounded —
+    # `-shortest` then stops it at whatever the encoder had buffered, and the
+    # clip comes out 3s on one machine and 6s on another.
+    args += ["-t", str(seconds), "-c:v", "libx264", "-pix_fmt", "yuv420p"]
     if audio:
         args += ["-c:a", "aac", "-shortest"]
     args += [str(path)]

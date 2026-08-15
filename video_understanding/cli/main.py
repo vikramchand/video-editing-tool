@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -354,6 +355,59 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_reset(args: argparse.Namespace) -> int:
+    """Delete the database and the artefacts it points at, then recreate the tree.
+
+    Rows and files have to go together. A job row without its upload is a dead
+    link in the library; an upload without its row is a file nothing will ever
+    clean up. So this clears both, and leaves the directory structure in the
+    state `ensure_directories` would have created on a fresh install.
+
+    Paths come from `Settings`, never from a hard-coded `data/`, so a relocated
+    DATA_DIR or DATABASE_PATH is reset rather than silently skipped.
+    """
+    settings = get_settings()
+
+    db = settings.db_path
+    # WAL mode means the database is up to three files. Removing only the main
+    # one can leave committed rows behind in the -wal sidecar.
+    db_files = [db, db.with_name(f"{db.name}-wal"), db.with_name(f"{db.name}-shm")]
+    directories = [
+        settings.uploads_dir,
+        settings.work_dir,
+        settings.renders_dir,
+        settings.thumbnails_dir,
+    ]
+
+    doomed = [p for p in db_files if p.exists()] + [d for d in directories if d.is_dir()]
+    if not doomed:
+        print(dim("nothing to delete."))
+        return 0
+
+    print(f"\n{bold('this permanently deletes:')}")
+    for path in doomed:
+        print(f"  {red('x')} {path.resolve()}")
+    print()
+
+    if not args.yes:
+        try:
+            answer = input("type 'yes' to continue: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            answer = ""
+        if answer != "yes":
+            print(yellow("aborted, nothing was deleted."))
+            return 1
+
+    for path in db_files:
+        path.unlink(missing_ok=True)
+    for directory in directories:
+        shutil.rmtree(directory, ignore_errors=True)
+
+    settings.ensure_directories()
+    print(green("reset complete.") + dim(f"  ({settings.data_dir.resolve()})"))
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Run the API server."""
     import uvicorn  # noqa: PLC0415
@@ -384,6 +438,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  video-understand my_video.mp4 --highlights-only --render\n"
             "  video-understand check\n"
             "  video-understand serve --port 8000\n"
+            "  video-understand reset\n"
         ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -399,6 +454,10 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--reload", action="store_true", help="auto-reload on code changes")
     serve.set_defaults(func=cmd_serve)
 
+    reset = subparsers.add_parser("reset", help="delete the database and all stored videos")
+    reset.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    reset.set_defaults(func=cmd_reset)
+
     process = subparsers.add_parser("process", help="analyse a video file (default command)")
     _add_process_arguments(process)
     process.set_defaults(func=cmd_process)
@@ -408,7 +467,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-SUBCOMMANDS = frozenset({"check", "serve", "process"})
+SUBCOMMANDS = frozenset({"check", "serve", "process", "reset"})
 
 
 def normalize_argv(argv: list[str]) -> list[str]:

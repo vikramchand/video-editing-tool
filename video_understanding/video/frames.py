@@ -116,7 +116,7 @@ def extract_frames(
         count = budget.get(scene.id, 0)
         for index, timestamp in enumerate(sample_timestamps(scene, count)):
             destination = output_dir / f"scene_{scene.id:03d}_frame_{index:02d}.jpg"
-            if _extract_one(video_path, timestamp, destination, settings.video_frame_width):
+            if extract_still(video_path, timestamp, destination, settings.video_frame_width):
                 frames.append(
                     Frame(scene_id=scene.id, timestamp=timestamp, path=str(destination))
                 )
@@ -125,13 +125,19 @@ def extract_frames(
     return frames
 
 
-def _extract_one(video_path: Path, timestamp: float, destination: Path, width: int) -> bool:
+def extract_still(
+    video_path: str | Path, timestamp: float, destination: str | Path, width: int
+) -> bool:
     """Extract a single frame. Returns False if ffmpeg produced nothing.
 
     A missing frame is not fatal — seeking past the last keyframe near the end
     of a file can legitimately yield no output, and the scene still has its
-    other samples.
+    other samples. Shared with the thumbnail generator, which needs exactly
+    this behaviour for one frame.
     """
+    video_path = Path(video_path)
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
         ffmpeg_utils.run(
             [

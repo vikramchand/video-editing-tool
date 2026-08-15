@@ -24,7 +24,8 @@ from video_understanding.core.models import (
 )
 from video_understanding.jobs.processor import JobProcessor
 from video_understanding.storage.database import Database
-from video_understanding.video import rendering
+from video_understanding.storage.files import resolve_source
+from video_understanding.video import rendering, thumbnails
 from video_understanding.video.metadata import validate_upload
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/videos", tags=["videos"])
 
 CHUNK_SIZE = 1024 * 1024
+
+# The still sizes the UI actually asks for: a timeline strip and a scene card.
+FRAME_WIDTHS = (160, 320, 640)
 
 
 def _require_job(database: Database, video_id: str) -> VideoJob:
@@ -146,12 +150,21 @@ async def list_videos(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     include_results: bool = Query(default=False, description="Include full results in the list"),
+    q: str | None = Query(default=None, description="Search filename, title, summary and topics"),
+    status_filter: JobStatus | None = Query(
+        default=None, alias="status", description="Only videos in this status"
+    ),
     database: Database = Depends(get_database),
+    settings: Settings = Depends(get_config),
 ) -> list[VideoResponse]:
-    """List uploaded videos, newest first."""
+    """List uploaded videos, newest first.
+
+    For browsing the whole history, `/v1/library` is cheaper and carries the
+    counts a paginated UI needs.
+    """
     return [
-        _to_response(job, include_result=include_results)
-        for job in database.list_jobs(limit=limit, offset=offset)
+        _to_response(job, settings, include_result=include_results)
+        for job in database.list_jobs(limit=limit, offset=offset, query=q, status=status_filter)
     ]
 
 
@@ -159,9 +172,10 @@ async def list_videos(
 async def get_video(
     video_id: str,
     database: Database = Depends(get_database),
+    settings: Settings = Depends(get_config),
 ) -> VideoResponse:
     """Get a video's status and, once complete, its structured understanding."""
-    return _to_response(_require_job(database, video_id), include_result=True)
+    return _to_response(_require_job(database, video_id), settings, include_result=True)
 
 
 @router.get("/{video_id}/status", response_model=StatusResponse)
@@ -186,11 +200,12 @@ async def get_status(
 async def get_source(
     video_id: str,
     database: Database = Depends(get_database),
+    settings: Settings = Depends(get_config),
 ) -> FileResponse:
     """Serve the original upload, so the web UI can preview it."""
     job = _require_job(database, video_id)
-    source = Path(job.source_path) if job.source_path else None
-    if source is None or not source.is_file():
+    source = resolve_source(job.source_path, video_id, settings.uploads_dir)
+    if source is None:
         raise HTTPException(status_code=404, detail="source video is no longer on disk")
 
     # `inline` (rather than FileResponse's default `attachment`) so the web UI's
@@ -200,6 +215,56 @@ async def get_source(
         source,
         media_type=_media_type_for(source),
         headers={"Content-Disposition": f'inline; filename="{Path(job.filename).name}"'},
+    )
+
+
+@router.get("/{video_id}/thumbnail")
+async def get_thumbnail(
+    video_id: str,
+    database: Database = Depends(get_database),
+    settings: Settings = Depends(get_config),
+) -> FileResponse:
+    """Serve the video's poster frame, generating it on first request.
+
+    404 when no frame can be produced — the library treats that as "draw the
+    placeholder", which is the right outcome for a job that failed before its
+    file was readable.
+    """
+    job = _require_job(database, video_id)
+    thumbnail = thumbnails.ensure_thumbnail(job, settings)
+    if thumbnail is None:
+        raise HTTPException(status_code=404, detail="no thumbnail available for this video")
+
+    return FileResponse(
+        thumbnail,
+        media_type="image/jpeg",
+        # Content is immutable per video id, so the library can reuse it freely.
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/{video_id}/frame")
+async def get_frame(
+    video_id: str,
+    t: float = Query(default=0.0, ge=0, description="Timestamp in seconds"),
+    w: int = Query(default=320, description="Width in pixels", ge=80, le=1280),
+    database: Database = Depends(get_database),
+    settings: Settings = Depends(get_config),
+) -> FileResponse:
+    """Serve a still from an arbitrary point in the video.
+
+    Widths are snapped to a small set so that a client cannot fill the cache
+    directory by asking for a thousand slightly different sizes.
+    """
+    job = _require_job(database, video_id)
+    width = min(FRAME_WIDTHS, key=lambda candidate: abs(candidate - w))
+
+    frame = thumbnails.ensure_frame(job, t, width, settings)
+    if frame is None:
+        raise HTTPException(status_code=404, detail="no frame available at that timestamp")
+
+    return FileResponse(
+        frame, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"}
     )
 
 
@@ -242,7 +307,8 @@ async def render_video(
             status_code=409,
             detail=f"video is '{job.status.value}'; rendering needs a completed analysis",
         )
-    if not job.source_path or not Path(job.source_path).is_file():
+    source = resolve_source(job.source_path, video_id, settings.uploads_dir)
+    if source is None:
         raise HTTPException(status_code=404, detail="source video is no longer on disk")
 
     result = job.result
@@ -269,9 +335,9 @@ async def render_video(
                 detail="captions were requested but this video has no transcript",
             )
 
-        output_path = settings.renders_dir / f"{video_id}_edit.mp4"
+        output_path = rendering.render_path(settings.renders_dir, video_id)
         rendering.render_edit(
-            job.source_path,
+            source,
             output_path,
             keep,
             captions=captions,
@@ -304,7 +370,7 @@ async def download_render(
 ) -> FileResponse:
     """Download a previously rendered edit."""
     _require_job(database, video_id)
-    output_path = settings.renders_dir / f"{video_id}_edit.mp4"
+    output_path = rendering.render_path(settings.renders_dir, video_id)
     if not output_path.is_file():
         raise HTTPException(
             status_code=404, detail="no render exists yet; POST to /render first"
@@ -323,13 +389,15 @@ async def delete_video(
     """Delete a video, its result, and its files."""
     job = _require_job(database, video_id)
 
-    if job.source_path:
-        Path(job.source_path).unlink(missing_ok=True)
-    (settings.renders_dir / f"{video_id}_edit.mp4").unlink(missing_ok=True)
+    source = resolve_source(job.source_path, video_id, settings.uploads_dir)
+    if source is not None:
+        source.unlink(missing_ok=True)
+    rendering.render_path(settings.renders_dir, video_id).unlink(missing_ok=True)
+    thumbnails.purge(video_id, settings)
     database.delete_job(video_id)
 
 
-def _to_response(job: VideoJob, *, include_result: bool) -> VideoResponse:
+def _to_response(job: VideoJob, settings: Settings, *, include_result: bool) -> VideoResponse:
     return VideoResponse(
         video_id=job.video_id,
         status=job.status,
@@ -340,4 +408,5 @@ def _to_response(job: VideoJob, *, include_result: bool) -> VideoResponse:
         created_at=job.created_at,
         updated_at=job.updated_at,
         result=job.result if include_result else None,
+        has_render=rendering.render_path(settings.renders_dir, job.video_id).is_file(),
     )

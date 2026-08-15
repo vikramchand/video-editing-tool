@@ -422,21 +422,47 @@ EDIT SUGGESTIONS (6)
 
 ## Web UI
 
-Served at `http://localhost:8000` by the API itself — a single dependency-free
-HTML page, no build step, no `npm install`. Functionality over polish, as
-specified.
+Served at `http://localhost:8000` by the API itself — three static files
+(`index.html`, `app.css`, `app.js`), no build step, no `npm install`, no CDN.
+It works with the network unplugged, which is the point of a local-first tool.
 
-- Drag-and-drop upload
-- Live processing progress by stage
-- Video preview with a colour-coded scene timeline (shaded by importance)
-- Click any scene, highlight, edit or transcript line to seek the player there
-- Summary, transcript, scene list, highlight list
-- Edit controls that call the render endpoint, with download
-- Raw JSON inspector with copy/download
+The layout is a three-column workspace: **library** on the left, **player and
+timeline** in the middle, **inspector** on the right.
 
-A React + Vite frontend was the alternative; a server-rendered page was chosen
-because it removes a build toolchain, a second dev server and a CORS story from
-a project whose value is in the pipeline.
+**Library.** Every upload ever made, read from SQLite, newest first. Poster
+frame, duration, status and scene count per row; live progress bars for jobs
+still running; search across filename, title, summary and topics; filter by
+status; sort by date, duration or name; paginated. Selecting a video deep-links
+to it (`#/v/<id>`), so a video is bookmarkable, reloadable and back-buttonable.
+
+**Player.** The video takes whatever height the window allows. Custom transport:
+play/pause, ±5 s, scene-to-scene stepping, speed, volume, fullscreen, and a
+caption overlay driven by the transcript. Keyboard shortcuts throughout
+(`space`, `J`/`K`/`L`, `,`/`.` for single frames, `[`/`]` for scenes, `0`–`9`
+to jump, `?` for the list).
+
+**Timeline.** Five aligned tracks under a time ruler: a filmstrip of real
+stills, scenes coloured and shaded by importance, speech, highlights, and edit
+suggestions coloured by action. Click or drag anywhere to scrub, hover for a
+tooltip with the range and the model's description, zoom to 8× for tighter
+work. The playhead, the scene readout, the active transcript line and the
+highlighted scene card all follow playback.
+
+**Detail tabs.** Transcript (searchable, follows playback, click to seek),
+scenes as a card grid with a still per scene, highlights and edit suggestions
+with scored meters, extracted people/objects/actions, and the raw JSON.
+
+**Inspector.** Summary, topics, full media specs, provider attribution,
+degradation warnings, and the export panel — which previews the exact result of
+the current options (`10.0s → 4.0s · 3 highlights · 1 removal applied`) before
+you spend FFmpeg time on it.
+
+Light and dark themes follow the system and can be toggled; the choice
+persists.
+
+A React + Vite frontend was the alternative; static files were chosen because
+they remove a build toolchain, a second dev server and a CORS story from a
+project whose value is in the pipeline.
 
 ---
 
@@ -447,10 +473,13 @@ a project whose value is in the pipeline.
 | `GET` | `/health` | Service and per-provider health |
 | `GET` | `/v1/config` | Active configuration |
 | `POST` | `/v1/videos` | Upload a video (multipart `file`), returns `202` |
-| `GET` | `/v1/videos` | List videos (`limit`, `offset`, `include_results`) |
+| `GET` | `/v1/videos` | List videos (`limit`, `offset`, `include_results`, `q`, `status`) |
+| `GET` | `/v1/library` | Browse the library: cards, totals and per-status counts |
 | `GET` | `/v1/videos/{id}` | Status plus the full result when complete |
 | `GET` | `/v1/videos/{id}/status` | Lightweight progress poll |
 | `GET` | `/v1/videos/{id}/source` | The original upload (ranged, inline) |
+| `GET` | `/v1/videos/{id}/thumbnail` | Poster frame, generated once and cached |
+| `GET` | `/v1/videos/{id}/frame?t=&w=` | A still at any timestamp (cached) |
 | `GET` | `/v1/videos/{id}/transcript.srt` | Transcript as SRT |
 | `POST` | `/v1/videos/{id}/render` | Render an edited video |
 | `GET` | `/v1/videos/{id}/render/download` | Download the rendered edit |
@@ -690,8 +719,10 @@ detection and boundary post-processing, the frame-sampling budget, transcript
 normalisation and SRT output, model-response parsing (including the malformed
 JSON shapes small models actually emit), Pydantic validation and coercion,
 edit-decision generation, transcript remapping across cuts, FFmpeg rendering,
-the job store under concurrent writes, graceful degradation when a provider
-fails, the CLI, and every API endpoint.
+the job store under concurrent writes, the library read model (search
+escaping, filters, sorting, schema migration and backfill), source-path
+resolution across hosts, graceful degradation when a provider fails, the CLI,
+and every API endpoint.
 
 The suite also validates the shipped example JSON against the live schema, so
 the documentation cannot silently drift from the models.
@@ -705,7 +736,7 @@ video_understanding/
 ├── api/
 │   ├── app.py              FastAPI factory, error handlers, UI mount
 │   ├── dependencies.py     Shared app state
-│   └── routes/             videos.py, health.py
+│   └── routes/             videos.py, library.py, health.py
 ├── core/
 │   ├── config.py           Settings, precedence, hardware detection
 │   ├── models.py           Every Pydantic model — the contract
@@ -716,6 +747,7 @@ video_understanding/
 │   ├── audio.py            16 kHz mono extraction
 │   ├── scenes.py           Three detectors + shared post-processing
 │   ├── frames.py           The frame-budget optimisation
+│   ├── thumbnails.py       Poster frames and cached stills for the UI
 │   └── rendering.py        Editing MVP
 ├── ai/
 │   ├── prompts.py          Vision and reasoning prompts
@@ -727,9 +759,11 @@ video_understanding/
 ├── jobs/
 │   ├── pipeline.py         The pipeline. One implementation, shared.
 │   └── processor.py        Thread-pool job queue
-├── storage/database.py     SQLite job store
+├── storage/
+│   ├── database.py         SQLite job store and library read model
+│   └── files.py            Resolving a job back to its file on disk
 ├── cli/main.py             CLI
-└── web/index.html          Web UI
+└── web/                    index.html, app.css, app.js
 ```
 
 ---
@@ -771,6 +805,29 @@ input, not an error.
 **Scene detection has a floor that cannot fail.** PySceneDetect → FFmpeg →
 uniform chunking. The last one is arithmetic, so this stage always produces
 something.
+
+**The library is a second read model over the same rows.** The full analysis
+lives in one `result_json` blob, but the fields a card needs — title, duration,
+dimensions, scene and highlight counts, topics — are written to their own
+columns when a result is saved. Drawing a page of the library would otherwise
+mean parsing and validating fifty result documents, and searching it would mean
+`LIKE` over JSON. `save_result` is the only writer, so the denormalisation
+cannot drift; opening an older database file adds the columns and backfills
+them from the blobs already stored.
+
+**A job resolves to its file, not to a recorded path.** `source_path` is an
+absolute path, which stops being true the moment the same data directory is
+opened from somewhere else — a video uploaded through the container
+(`/app/data/uploads/x.mp4`) and then browsed from a server on the host. Uploads
+are named after the video id, so the file can always be found again from the id
+alone. Old rows stay playable instead of becoming dead links.
+
+**Cutting is one ffmpeg process per segment, not one filter graph.** The
+elegant version — a `trim` per segment feeding `concat` — is a trap: the trims
+share an input pad, and on ffmpeg 7.x the first branch to end tears the graph
+down, so the command exits 0 having written only one of the segments. Segments
+are encoded individually with identical settings and joined with `-c copy`,
+which is lossless, frame-accurate, and cannot fail that way.
 
 **Threads, not a broker.** The work is dominated by subprocess and HTTP waits,
 which release the GIL. A `ThreadPoolExecutor` plus SQLite is the honest fit for

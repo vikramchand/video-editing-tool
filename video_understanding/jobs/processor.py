@@ -25,6 +25,7 @@ from video_understanding.core.errors import VideoUnderstandingError
 from video_understanding.core.models import JobStatus, ProcessingStage
 from video_understanding.jobs.pipeline import VideoPipeline
 from video_understanding.storage.database import Database
+from video_understanding.video import thumbnails
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,7 @@ class JobProcessor:
                 on_stage=on_stage,
             )
             self.database.save_result(video_id, result)
+            self._make_thumbnail(video_id)
             logger.info("job %s completed", video_id)
 
         except VideoUnderstandingError as exc:
@@ -117,6 +119,20 @@ class JobProcessor:
         except Exception as exc:  # noqa: BLE001 - a worker must never die silently
             logger.error("job %s crashed:\n%s", video_id, traceback.format_exc())
             self._fail(video_id, f"Unexpected error: {type(exc).__name__}: {exc}")
+
+    def _make_thumbnail(self, video_id: str) -> None:
+        """Generate the library poster frame while the job is still warm.
+
+        Best-effort by design: the analysis is already saved, and a missing
+        thumbnail is a placeholder in the library, never a failed job. The
+        endpoint regenerates lazily anyway.
+        """
+        try:
+            job = self.database.get_job(video_id)
+            if job is not None:
+                thumbnails.ensure_thumbnail(job, self.settings)
+        except Exception:  # noqa: BLE001 - cosmetic work must not fail a job
+            logger.debug("thumbnail generation failed for %s", video_id, exc_info=True)
 
     def _fail(self, video_id: str, message: str) -> None:
         try:

@@ -335,6 +335,51 @@ class VideoResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     result: VideoUnderstanding | None = None
+    has_render: bool = Field(
+        default=False, description="Whether a rendered edit for this video is already on disk"
+    )
+
+
+class VideoSummary(BaseModel):
+    """One row of the library.
+
+    Everything here comes from the job's own columns, so a page of the library
+    costs one query and no JSON parsing. It is intentionally a different shape
+    from `VideoResponse`: a card needs counts, a detail view needs the data.
+    """
+
+    video_id: str
+    filename: str
+    status: JobStatus
+    stage: ProcessingStage
+    progress: float
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    title: str | None = None
+    summary: str = ""
+    duration: float | None = None
+    width: int | None = None
+    height: int | None = None
+    size_bytes: int | None = None
+    scene_count: int = 0
+    highlight_count: int = 0
+    transcript_count: int = 0
+    has_audio: bool = False
+    topics: list[str] = Field(default_factory=list)
+    has_render: bool = False
+
+
+class LibraryResponse(BaseModel):
+    """A page of the library, plus the totals its filter chips need."""
+
+    items: list[VideoSummary]
+    total: int = Field(description="Videos matching the current filters")
+    limit: int
+    offset: int
+    counts: dict[str, int] = Field(
+        default_factory=dict, description="Unfiltered totals per status, plus 'all'"
+    )
 
 
 class RenderRequest(BaseModel):
