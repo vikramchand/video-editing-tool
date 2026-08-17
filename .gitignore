@@ -23,6 +23,9 @@ output/
 .env
 config.yaml
 
+# Mac app build output (the sources in macapp/ are tracked)
+macapp/build/
+
 # Editors / OS
 .vscode/
 .idea/
